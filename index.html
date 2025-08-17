@@ -1,13 +1,77 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AI Planner — Preview</title>
+    <style>
+      body { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; }
+      textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+      button { padding: 8px 14px; border-radius: 6px; border: 1px solid #ccc; background: #fafafa; cursor: pointer; }
+      .card { padding: 10px; border: 1px solid #eee; border-radius: 8px; margin: 10px 0; }
+      small { color: #666; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <h2>Auto-Prioritize & Schedule — Preview</h2>
+    <p style="color:#555">Type tasks (one per line). Include hints like “(~90m)” or “5:00pm”.</p>
+
+    <textarea id="in" rows="8">finish SoP by 5pm (~90m)
+email Sam (10m)
+gym 45m</textarea>
+
+    <div style="margin-top:10px; display:flex; gap:8px;">
+      <button id="btn">Preview plan</button>
+    </div>
+
+    <div id="out" style="margin-top:16px;"></div>
+
+    <script>
+      const API_BASE = "https://todo-scheduler-api.<your-subdomain>.workers.dev"; // <-- put your real URL here
+
+      function parseLinesToTasks(text) {
+        return text.split("\n").map(s=>s.trim()).filter(Boolean).map(line => {
+          const mMin = /(\d+)\s?m/i.exec(line);
+          const mHr  = /(\d+)\s?h/i.exec(line);
+          const duration_min = mMin ? +mMin[1] : mHr ? +mHr[1]*60 : 30;
+          const due = /(\d{1,2}):(\d{2})\s?(am|pm)?/i.exec(line);
+          const due_at = due ? (() => {
+            const d = new Date(); let h = +due[1], mi = +due[2];
+            const ap = (due[3]||"").toLowerCase(); if (ap==="pm" && h<12) h+=12; if(ap==="am" && h===12) h=0;
+            d.setHours(h, mi, 0, 0); return d.toISOString();
+          })() : null;
+          return { title: line.replace(/\(.*?\)/g,"").trim(), duration_min, due_at };
+        });
+      }
+
+      async function preview() {
+        const raw = document.getElementById("in").value;
+        const tasks = parseLinesToTasks(raw);
+        const res = await fetch(`${API_BASE}/plan/preview`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ tasks })
+        });
+        if (!res.ok) throw new Error("HTTP "+res.status);
+        const data = await res.json();
+        render(data.blocks || []);
+      }
+
+      function render(blocks) {
+        const out = document.getElementById("out");
+        if (!blocks.length) { out.textContent = "No plan."; return; }
+        out.innerHTML = blocks.map(b => `
+          <div class="card">
+            <b>${b.title}</b>
+            <div>${b.start && b.end ? (new Date(b.start)).toLocaleTimeString() + " – " + (new Date(b.end)).toLocaleTimeString() : "No slot today"}</div>
+            <small>${b.explanation || ""}</small>
+          </div>
+        `).join("");
+      }
+
+      document.getElementById("btn").addEventListener("click", () => preview().catch(err => {
+        document.getElementById("out").innerHTML = `<div style="color:crimson">Error: ${err.message}</div>`;
+      }));
+    </script>
   </body>
 </html>
