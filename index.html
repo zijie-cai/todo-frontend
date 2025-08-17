@@ -1,77 +1,386 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>AI Planner — Preview</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#111827" />
+    <title>Dootly AI — Daily Autopilot</title>
     <style>
-      body { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; }
-      textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
-      button { padding: 8px 14px; border-radius: 6px; border: 1px solid #ccc; background: #fafafa; cursor: pointer; }
-      .card { padding: 10px; border: 1px solid #eee; border-radius: 8px; margin: 10px 0; }
-      small { color: #666; }
+      :root{
+        --bg: #ffffff;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e5e7eb;
+        --brand: #2563eb;
+        --brand-ink: #ffffff;
+        --ok: #16a34a;
+        --warn: #f59e0b;
+        --danger: #dc2626;
+        --radius: 12px;
+        --shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.06);
+        --container: 1100px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root{
+          --bg: #0b0f14;
+          --card: #10161d;
+          --text: #e5e7eb;
+          --muted: #94a3b8;
+          --border: #1f2937;
+          --brand: #4f8cff;
+          --brand-ink: #0b0f14;
+          --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+        }
+      }
+      *{ box-sizing:border-box }
+      html,body{ height:100% }
+      body{
+        margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+        background:var(--bg); color:var(--text);
+        -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      a{ color:inherit }
+      .container{ max-width:var(--container); margin:0 auto; padding:16px; }
+
+      /* Top app bar (mobile) */
+      .topbar{
+        position:sticky; top:0; z-index:50; backdrop-filter:saturate(140%) blur(8px);
+        background: color-mix(in oklab, var(--bg) 85%, transparent);
+        border-bottom:1px solid var(--border);
+      }
+      .topbar-inner{ display:flex; align-items:center; justify-content:space-between; padding:10px 16px; }
+      .logo{ display:flex; gap:10px; align-items:center; font-weight:700; }
+      .logo-badge{ width:28px; height:28px; border-radius:8px; background:var(--brand); color:var(--brand-ink); display:grid; place-items:center; font-weight:800 }
+      .actions{ display:flex; gap:8px; align-items:center; }
+      .iconbtn{ border:1px solid var(--border); background:var(--card); padding:8px 10px; border-radius:10px; cursor:pointer }
+      .iconbtn:active{ transform:translateY(1px) }
+
+      /* Layout */
+      .grid{
+        display:grid; gap:16px; grid-template-columns: 1fr;
+      }
+      @media (min-width: 980px){
+        .grid{ grid-template-columns: 320px 1fr; align-items:start }
+        .desktop-only{ display:block !important }
+        .mobile-only{ display:none !important }
+        .sidebar{ position:sticky; top:64px }
+      }
+
+      /* Cards */
+      .card{
+        background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+        box-shadow:var(--shadow);
+      }
+      .card h3{ margin:0; padding:16px; border-bottom:1px solid var(--border); font-size:16px }
+      .card .body{ padding:16px }
+      .muted{ color:var(--muted) }
+      .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      .chips{ display:flex; gap:8px; flex-wrap:wrap; }
+      .chip{ border:1px solid var(--border); padding:6px 10px; border-radius:999px; font-size:12px; color:var(--muted) }
+      .field{ display:flex; flex-direction:column; gap:8px }
+      textarea{
+        width:100%; min-height:140px; resize:vertical;
+        border:1px solid var(--border); border-radius:10px; background:transparent; color:var(--text); padding:12px; font-size:14px;
+      }
+      .btn{
+        display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; border:1px solid var(--border);
+        background:var(--card); cursor:pointer; font-weight:600;
+      }
+      .btn.primary{ background:var(--brand); border-color:var(--brand); color:var(--brand-ink) }
+      .btn.ghost{ background:transparent }
+      .btn:active{ transform:translateY(1px) }
+      .btn[disabled]{ opacity:.6; cursor:not-allowed }
+
+      /* Plan timeline */
+      .timeline{ display:flex; flex-direction:column; gap:10px }
+      .block{
+        border:1px solid var(--border); border-radius:12px; padding:12px; display:flex; gap:12px; align-items:flex-start; background:linear-gradient(180deg, color-mix(in lab, var(--card) 92%, transparent), var(--card));
+      }
+      .badge{ width:10px; height:10px; border-radius:3px; background:var(--brand); margin-top:6px; flex-shrink:0 }
+      .block h4{ margin:0 0 4px 0; font-size:14px }
+      .sub{ font-size:12px; color:var(--muted) }
+
+      /* Bottom nav (mobile) */
+      .tabbar{
+        position:sticky; bottom:0; z-index:60; background:var(--card);
+        border-top:1px solid var(--border); display:flex; justify-content:space-around; padding:8px env(safe-area-inset-left) calc(8px + env(safe-area-inset-bottom)) env(safe-area-inset-right);
+      }
+      .tab{ display:grid; place-items:center; gap:4px; color:var(--muted); text-decoration:none; font-size:11px }
+      .tab.active{ color:var(--brand) }
+      .tab svg{ width:22px; height:22px }
+
+      /* Toast */
+      .toast{
+        position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom));
+        background:var(--card); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow);
+        padding:10px 12px; font-size:13px; display:none;
+      }
+      .toast.show{ display:block; animation: pop .18s ease-out }
+      @keyframes pop { from{ transform:translateX(-50%) scale(.98); opacity:0 } }
+
+      /* Utility */
+      .spacer{ height:8px }
+      .hidden{ display:none !important }
+      .right{ margin-left:auto }
     </style>
   </head>
   <body>
-    <h2>Auto-Prioritize & Schedule — Preview</h2>
-    <p style="color:#555">Type tasks (one per line). Include hints like “(~90m)” or “5:00pm”.</p>
+    <!-- Top App Bar -->
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="logo" aria-label="Dootly AI">
+          <div class="logo-badge" aria-hidden="true">✓</div>
+          <div>Dootly <span class="muted">AI</span></div>
+        </div>
+        <div class="actions">
+          <button class="iconbtn" id="btn-theme" title="Toggle theme" aria-label="Toggle theme">
+            <!-- sun/moon -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 4V2M12 22v-2M4 12H2m20 0h-2M5 5l-1.4-1.4M20.4 20.4 19 19M5 19l-1.4 1.4M20.4 3.6 19 5"
+                stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </button>
+          <button class="iconbtn desktop-only" id="btn-settings" title="Settings" aria-label="Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 8 8 0 0 1-6.6 0 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 8 8 0 0 1 0-6.6 1 1 0 0 0-.2-1.1l-.1-.1A2 2 0 1 1 5.8 4.6l.1.1a1 1 0 0 0 1.1.2 8 8 0 0 1 6.6 0 1 1 0 0 0 1.1-.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1 8 8 0 0 1 0 6.6Z"
+                stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
 
-    <textarea id="in" rows="8">finish SoP by 5pm (~90m)
+    <main class="container">
+      <div class="grid">
+        <!-- Sidebar / Composer -->
+        <aside class="sidebar">
+          <section class="card" aria-labelledby="compose-title">
+            <h3 id="compose-title">Today’s To-Dos</h3>
+            <div class="body">
+              <div class="field">
+                <label for="input" class="muted">One per line (e.g., “finish SoP by 5pm (~90m)”).</label>
+                <textarea id="input" placeholder="Write daily tasks here...">finish SoP by 5pm (~90m)
 email Sam (10m)
 gym 45m</textarea>
+              </div>
+              <div class="spacer"></div>
+              <div class="row">
+                <button class="btn" id="btn-preview">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg>
+                  Preview plan
+                </button>
+                <button class="btn primary" id="btn-ai-preview">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h4l2-5 4 10 2-5h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  AI parse + preview
+                </button>
+                <button class="btn ghost right" id="btn-clear" title="Clear input">Clear</button>
+              </div>
+              <div class="spacer"></div>
+              <div class="chips">
+                <span class="chip">Default duration: <b id="chip-dur">30m</b></span>
+                <span class="chip">Work hours: <b>9:30–5:30</b></span>
+                <span class="chip">Calendar: <b>Preview only</b></span>
+              </div>
+            </div>
+          </section>
 
-    <div style="margin-top:10px; display:flex; gap:8px;">
-      <button id="btn">Preview plan</button>
-    </div>
+          <section class="card desktop-only" style="margin-top:16px">
+            <h3>Shortcuts</h3>
+            <div class="body">
+              <div class="row">
+                <button class="btn" id="btn-sample-1">Use sample tasks</button>
+                <button class="btn" id="btn-now">Plan from now</button>
+              </div>
+            </div>
+          </section>
+        </aside>
 
-    <div id="out" style="margin-top:16px;"></div>
+        <!-- Main content: Plan -->
+        <section class="card" aria-live="polite">
+          <h3>Today’s Plan</h3>
+          <div class="body">
+            <div id="summary" class="muted" style="margin-bottom:10px;">No plan yet. Paste tasks and preview.</div>
+            <div class="timeline" id="timeline"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Bottom mobile nav -->
+    <nav class="tabbar mobile-only" role="navigation" aria-label="Primary">
+      <a class="tab active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z" stroke="currentColor" stroke-width="1.5"/><path d="M16 3v4M8 3v4M3 10h18" stroke="currentColor" stroke-width="1.5"/></svg>
+        Plan
+      </a>
+      <a class="tab" href="#">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 12h8M8 16h5M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6L2 20V6a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.5"/></svg>
+        Inbox
+      </a>
+      <a class="tab" href="#">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4h16v6H4zM4 14h16v6H4z" stroke="currentColor" stroke-width="1.5"/></svg>
+        History
+      </a>
+      <a class="tab" href="#">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.5"/></svg>
+        Account
+      </a>
+    </nav>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script>
-      const API_BASE = "https://todo-scheduler-api.<your-subdomain>.workers.dev"; // <-- put your real URL here
+      // ====== CONFIG ======
+      // Set this to your Worker origin when ready:
+      const API_BASE = ""; // e.g., "https://todo-scheduler-api.<your-subdomain>.workers.dev"
+      // =====================
 
-      function parseLinesToTasks(text) {
-        return text.split("\n").map(s=>s.trim()).filter(Boolean).map(line => {
-          const mMin = /(\d+)\s?m/i.exec(line);
+      const $ = (q)=>document.querySelector(q);
+      const $$ = (q)=>document.querySelectorAll(q);
+      const elInput = $("#input");
+      const elTimeline = $("#timeline");
+      const elSummary = $("#summary");
+      const elToast = $("#toast");
+      const defaultDurationMin = 30;
+
+      // Theme toggle (simple)
+      $("#btn-theme")?.addEventListener("click", ()=>{
+        const cur = document.documentElement.getAttribute("data-theme") || (matchMedia('(prefers-color-scheme: dark)').matches ? "dark":"light");
+        const next = cur==="dark" ? "light":"dark";
+        document.documentElement.setAttribute("data-theme", next);
+      });
+
+      // Buttons
+      $("#btn-clear")?.addEventListener("click", ()=>{ elInput.value=""; elInput.focus(); showToast("Cleared."); });
+      $("#btn-sample-1")?.addEventListener("click", ()=>{
+        elInput.value = `finish SoP by Fri 5pm (~90m)
+email Sam (10m)
+debug lab assignment (~45m)
+laundry 20m
+gym 45m`;
+        showToast("Sample tasks added.");
+      });
+      $("#btn-now")?.addEventListener("click", ()=>{
+        showToast("Planner will prefer starting from current time.");
+      });
+
+      $("#btn-preview")?.addEventListener("click", async ()=>{
+        const tasks = parseLocal(elInput.value);
+        const plan = API_BASE ? await planPreview(tasks) : mockPlan(tasks);
+        renderPlan(plan);
+      });
+
+      $("#btn-ai-preview")?.addEventListener("click", async ()=>{
+        const tasks = API_BASE ? await aiParse(elInput.value) : parseLocal(elInput.value); // fallback to local parse
+        // fill missing durations for the planner
+        const normalized = (tasks || []).map(t => ({
+          title: t.title,
+          duration_min: t.duration_min ?? defaultDurationMin,
+          due_at: t.due_at || null
+        }));
+        const plan = API_BASE ? await planPreview(normalized) : mockPlan(normalized);
+        renderPlan(plan);
+      });
+
+      // ====== Parsing & API ======
+      function parseLocal(text){
+        return text.split("\n").map(s=>s.trim()).filter(Boolean).map(line=>{
+          const mMin = /(~?(\d+))\s?m/i.exec(line);
           const mHr  = /(\d+)\s?h/i.exec(line);
-          const duration_min = mMin ? +mMin[1] : mHr ? +mHr[1]*60 : 30;
-          const due = /(\d{1,2}):(\d{2})\s?(am|pm)?/i.exec(line);
-          const due_at = due ? (() => {
-            const d = new Date(); let h = +due[1], mi = +due[2];
-            const ap = (due[3]||"").toLowerCase(); if (ap==="pm" && h<12) h+=12; if(ap==="am" && h===12) h=0;
-            d.setHours(h, mi, 0, 0); return d.toISOString();
+          const duration_min = mMin ? +mMin[2] : (mHr ? +mHr[1]*60 : defaultDurationMin);
+          const due = /(\b(?:1[0-2]|0?[1-9])):(\d{2})\s?(am|pm)?\b/i.exec(line);
+          const due_at = due ? (()=>{
+            const d = new Date();
+            let h = +due[1], mi = +due[2];
+            const ap = (due[3]||"").toLowerCase();
+            if(ap==="pm" && h<12) h+=12;
+            if(ap==="am" && h===12) h=0;
+            d.setHours(h, mi, 0, 0);
+            return d.toISOString();
           })() : null;
           return { title: line.replace(/\(.*?\)/g,"").trim(), duration_min, due_at };
         });
       }
 
-      async function preview() {
-        const raw = document.getElementById("in").value;
-        const tasks = parseLinesToTasks(raw);
-        const res = await fetch(`${API_BASE}/plan/preview`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ tasks })
+      async function aiParse(raw){
+        try{
+          const r = await fetch(`${API_BASE}/ai/parse`, {
+            method:"POST", headers:{ "content-type":"application/json" },
+            body: JSON.stringify({ raw })
+          });
+          if(!r.ok) throw new Error(`AI parse failed (${r.status})`);
+          const j = await r.json();
+          return j.tasks || [];
+        }catch(e){ showToast(e.message, "danger"); return []; }
+      }
+
+      async function planPreview(tasks){
+        try{
+          const r = await fetch(`${API_BASE}/plan/preview`, {
+            method:"POST", headers:{ "content-type":"application/json" },
+            body: JSON.stringify({ tasks })
+          });
+          if(!r.ok) throw new Error(`Preview failed (${r.status})`);
+          const j = await r.json();
+          return j.blocks || [];
+        }catch(e){ showToast(e.message, "danger"); return []; }
+      }
+
+      // Local mock if API not set
+      function mockPlan(tasks){
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 30, 0, 0);
+        let cur = start.getTime();
+        return tasks.map((t,i)=>{
+          const dur = (t.duration_min||defaultDurationMin)*60000;
+          const s = new Date(cur);
+          const e = new Date(cur + dur);
+          cur = e.getTime() + 10*60000; // 10m buffer
+          return { title:t.title, start:s.toISOString(), end:e.toISOString(), explanation:"Mock packed" }
         });
-        if (!res.ok) throw new Error("HTTP "+res.status);
-        const data = await res.json();
-        render(data.blocks || []);
       }
 
-      function render(blocks) {
-        const out = document.getElementById("out");
-        if (!blocks.length) { out.textContent = "No plan."; return; }
-        out.innerHTML = blocks.map(b => `
-          <div class="card">
-            <b>${b.title}</b>
-            <div>${b.start && b.end ? (new Date(b.start)).toLocaleTimeString() + " – " + (new Date(b.end)).toLocaleTimeString() : "No slot today"}</div>
-            <small>${b.explanation || ""}</small>
-          </div>
-        `).join("");
+      // ====== Render ======
+      function renderPlan(blocks){
+        if(!blocks?.length){
+          elTimeline.innerHTML = "";
+          elSummary.textContent = "No plan yet. Paste tasks and preview.";
+          return;
+        }
+        elSummary.textContent = `Planned ${blocks.length} block${blocks.length>1?"s":""} for today.`;
+        elTimeline.innerHTML = blocks.map(b => {
+          const time = b.start && b.end ? `${fmt(b.start)}–${fmt(b.end)}` : "Unscheduled";
+          return `
+            <article class="block" role="article" aria-label="${b.title}">
+              <div class="badge" aria-hidden="true"></div>
+              <div>
+                <h4>${escapeHTML(b.title)}</h4>
+                <div class="sub">${time}${b.explanation?` • ${escapeHTML(b.explanation)}`:""}</div>
+              </div>
+            </article>
+          `;
+        }).join("");
+        window.scrollTo({ top:0, behavior:"smooth" });
+        showToast("Plan ready.");
       }
 
-      document.getElementById("btn").addEventListener("click", () => preview().catch(err => {
-        document.getElementById("out").innerHTML = `<div style="color:crimson">Error: ${err.message}</div>`;
-      }));
+      function fmt(iso){ const d=new Date(iso); return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+      function showToast(msg, kind){
+        elToast.textContent = msg;
+        elToast.className = "toast show";
+        if(kind==="danger") elToast.style.borderColor = "var(--danger)";
+        else if(kind==="warn") elToast.style.borderColor = "var(--warn)";
+        else elToast.style.borderColor = "var(--border)";
+        setTimeout(()=>{ elToast.classList.remove("show") }, 2200);
+      }
+      function escapeHTML(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
     </script>
   </body>
 </html>
